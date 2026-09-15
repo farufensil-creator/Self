@@ -1,0 +1,15 @@
+{
+  "name": "Lending Ledger",
+  "short_name": "Udhar Khata",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#F1E9D8",
+  "theme_color": "#7A2E2E",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
