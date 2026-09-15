@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lending Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --maroon:#7A2E2E;
+    --maroon-dark:#5E2222;
+    --paper:#F1E9D8;
+    --paper-line:#DDCFAE;
+    --card:#FBF8F1;
+    --ink:#2B2620;
+    --ink-soft:#6B6153;
+    --gold:#A6791F;
+    --green:#3F6B4A;
+    --green-bg:#E8EEE7;
+    --red:#B4453A;
+    --red-bg:#F6E7E3;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 37px,
+        var(--paper-line) 38px
+      ),
+      var(--paper);
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    padding-bottom:40px;
+  }
+  .cover{
+    background:linear-gradient(180deg, var(--maroon) 0%, var(--maroon-dark) 100%);
+    color:#F3E9D6;
+    padding:28px 20px 22px;
+    border-bottom:4px solid var(--gold);
+    position:relative;
+  }
+  .cover::after{
+    content:"";
+    position:absolute;
+    left:0; right:0; bottom:-4px;
+    height:2px;
+    background:repeating-linear-gradient(90deg, var(--gold) 0 6px, transparent 6px 12px);
+    opacity:.6;
+  }
+  .cover h1{
+    font-family:'Fraunces', serif;
+    font-weight:700;
+    font-size:28px;
+    margin:0 0 14px 0;
+    letter-spacing:.2px;
+  }
+  .summary{
+    display:flex;
+    gap:10px;
+  }
+  .summary-box{
+    flex:1;
+    background:rgba(255,255,255,.08);
+    border:1px solid rgba(243,233,214,.25);
+    border-radius:6px;
+    padding:10px 12px;
+  }
+  .summary-box .label{
+    font-size:12px;
+    opacity:.8;
+    margin-bottom:4px;
+  }
+  .summary-box .value{
+    font-family:'Fraunces', serif;
+    font-size:20px;
+    font-weight:600;
+    font-variant-numeric:tabular-nums;
+  }
+  .summary-box.pending .value{ color:#F2C9A8; }
+  .summary-box.count .value{ color:#F3E9D6; }
+
+  .content{
+    max-width:640px;
+    margin:0 auto;
+    padding:0 16px;
+  }
+
+  .add-panel{
+    background:var(--card);
+    border:1px solid var(--paper-line);
+    border-radius:8px;
+    margin-top:-14px;
+    padding:16px;
+    box-shadow:0 2px 0 rgba(122,46,46,.06);
+  }
+  .add-panel h2{
+    font-family:'Fraunces', serif;
+    font-size:16px;
+    margin:0 0 12px 0;
+    color:var(--maroon-dark);
+  }
+  .field-row{
+    display:flex;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .field{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+  .field label{
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  .field input{
+    font-family:inherit;
+    font-size:15px;
+    padding:9px 10px;
+    border:1px solid var(--paper-line);
+    border-radius:5px;
+    background:#fff;
+    color:var(--ink);
+  }
+  .field input:focus{
+    outline:2px solid var(--gold);
+    outline-offset:1px;
+  }
+  .btn{
+    font-family:'Inter', sans-serif;
+    font-weight:600;
+    font-size:14px;
+    border:none;
+    border-radius:5px;
+    padding:10px 16px;
+    cursor:pointer;
+  }
+  .btn:focus-visible{
+    outline:2px solid var(--gold);
+    outline-offset:2px;
+  }
+  .btn-primary{
+    background:var(--maroon);
+    color:#F3E9D6;
+    width:100%;
+  }
+  .btn-primary:hover{ background:var(--maroon-dark); }
+
+  .tabs{
+    display:flex;
+    gap:6px;
+    margin:18px 0 6px 0;
+  }
+  .tab{
+    font-size:13px;
+    padding:6px 14px;
+    border-radius:16px;
+    border:1px solid var(--paper-line);
+    background:transparent;
+    color:var(--ink-soft);
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .tab.active{
+    background:var(--maroon);
+    color:#F3E9D6;
+    border-color:var(--maroon);
+  }
+
+  .ledger{
+    margin-top:6px;
+  }
+  .entry{
+    display:flex;
+    gap:10px;
+    padding:14px 4px;
+    border-bottom:1px solid var(--paper-line);
+    align-items:flex-start;
+  }
+  .entry-bar{
+    width:4px;
+    align-self:stretch;
+    border-radius:2px;
+    flex-shrink:0;
+  }
+  .entry-bar.pending{ background:var(--red); }
+  .entry-bar.settled{ background:var(--green); }
+
+  .entry-main{ flex:1; min-width:0; }
+  .entry-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:8px;
+  }
+  .entry-name{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:17px;
+    color:var(--ink);
+  }
+  .entry-amount{
+    font-variant-numeric:tabular-nums;
+    font-weight:700;
+    font-size:17px;
+    white-space:nowrap;
+  }
+  .entry-amount.pending{ color:var(--red); }
+  .entry-amount.settled{ color:var(--green); }
+
+  .entry-meta{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-top:2px;
+  }
+  .entry-note{
+    font-size:13.5px;
+    color:var(--ink-soft);
+    margin-top:4px;
+    font-style:italic;
+  }
+  .entry-progress{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:4px;
+  }
+
+  .entry-actions{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+    flex-wrap:wrap;
+  }
+  .btn-small{
+    font-size:12.5px;
+    padding:6px 10px;
+    border-radius:5px;
+    border:1px solid var(--paper-line);
+    background:#fff;
+    color:var(--ink);
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .btn-small.pay{
+    border-color:var(--green);
+    color:var(--green);
+  }
+  .btn-small.del{
+    border-color:var(--red);
+    color:var(--red);
+  }
+  .badge{
+    display:inline-block;
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:10px;
+    margin-top:4px;
+  }
+  .badge.pending{ background:var(--red-bg); color:var(--red); }
+  .badge.settled{ background:var(--green-bg); color:var(--green); }
+
+  .pay-form{
+    margin-top:10px;
+    display:flex;
+    gap:8px;
+    background:var(--green-bg);
+    padding:10px;
+    border-radius:6px;
+  }
+  .pay-form input{
+    flex:1;
+    font-family:inherit;
+    font-size:14px;
+    padding:7px 9px;
+    border:1px solid var(--paper-line);
+    border-radius:5px;
+  }
+
+  .empty{
+    text-align:center;
+    padding:50px 20px;
+    color:var(--ink-soft);
+  }
+  .empty .big{
+    font-family:'Fraunces', serif;
+    font-size:18px;
+    color:var(--maroon-dark);
+    margin-bottom:6px;
+  }
+
+  .error-note{
+    background:var(--red-bg);
+    color:var(--red);
+    padding:10px 14px;
+    border-radius:6px;
+    font-size:13px;
+    margin:14px 16px 0;
+    max-width:640px;
+    margin-left:auto;
+    margin-right:auto;
+  }
+
+  @media (max-width:420px){
+    .field-row{ flex-direction:column; }
+    .cover h1{ font-size:24px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>Lending Ledger</h1>
+  <div class="summary">
+    <div class="summary-box pending">
+      <div class="label">Total owed to you</div>
+      <div class="value" id="totalPending">₹0</div>
+    </div>
+    <div class="summary-box count">
+      <div class="label">People owing</div>
+      <div class="value" id="pendingCount">0</div>
+    </div>
+  </div>
+</div>
+
+<div class="content">
+  <div id="errorNote"></div>
+
+  <div class="add-panel">
+    <h2>Add a new entry</h2>
+    <div class="field-row">
+      <div class="field">
+        <label for="nameInput">Name</label>
+        <input type="text" id="nameInput" placeholder="e.g. Ramesh">
+      </div>
+      <div class="field">
+        <label for="amountInput">Amount (₹)</label>
+        <input type="number" id="amountInput" placeholder="0" min="0" step="1">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="dateInput">Date</label>
+        <input type="date" id="dateInput">
+      </div>
+      <div class="field">
+        <label for="noteInput">Note (optional)</label>
+        <input type="text" id="noteInput" placeholder="e.g. for bike repair">
+      </div>
+    </div>
+    <button class="btn btn-primary" id="addBtn">Add entry</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-filter="pending">Pending</button>
+    <button class="tab" data-filter="settled">Settled</button>
+    <button class="tab" data-filter="all">All</button>
+  </div>
+
+  <div class="ledger" id="ledger"></div>
+</div>
+
+<script>
+const STORAGE_KEY = 'udhar-entries';
+let entries = [];
+let currentFilter = 'pending';
+
+const $ = (id) => document.getElementById(id);
+
+function todayStr(){
+  const d = new Date();
+  return d.toISOString().slice(0,10);
+}
+$('dateInput').value = todayStr();
+
+function formatMoney(n){
+  return '₹' + Math.round(n).toLocaleString('en-IN');
+}
+function formatDate(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${parseInt(d)} ${months[parseInt(m)-1]} ${y}`;
+}
+
+async function loadEntries(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    entries = raw ? JSON.parse(raw) : [];
+  }catch(e){
+    entries = [];
+  }
+}
+
+async function saveEntries(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    clearError();
+  }catch(e){
+    showError('Something went wrong while saving.');
+  }
+}
+
+function showError(msg){
+  $('errorNote').innerHTML = `<div class="error-note">${msg}</div>`;
+}
+function clearError(){
+  $('errorNote').innerHTML = '';
+}
+
+function remaining(entry){
+  return Math.max(0, entry.amount - (entry.paid || 0));
+}
+function isSettled(entry){
+  return remaining(entry) <= 0;
+}
+
+function render(){
+  const pendingEntries = entries.filter(e => !isSettled(e));
+  const totalPending = pendingEntries.reduce((sum,e) => sum + remaining(e), 0);
+  $('totalPending').textContent = formatMoney(totalPending);
+  $('pendingCount').textContent = pendingEntries.length;
+
+  let list;
+  if(currentFilter === 'pending') list = entries.filter(e => !isSettled(e));
+  else if(currentFilter === 'settled') list = entries.filter(e => isSettled(e));
+  else list = entries.slice();
+
+  list.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+
+  const ledger = $('ledger');
+  ledger.innerHTML = '';
+
+  if(list.length === 0){
+    const emptyMsgs = {
+      pending: ['Nothing pending', 'You have nothing outstanding right now.'],
+      settled: ['Nothing settled yet', 'Once an amount is fully paid back, it will show up here.'],
+      all: ['Your ledger is empty', 'Add your first entry above.']
+    };
+    const [big, small] = emptyMsgs[currentFilter];
+    ledger.innerHTML = `<div class="empty"><div class="big">${big}</div><div>${small}</div></div>`;
+    return;
+  }
+
+  list.forEach(entry => {
+    const settled = isSettled(entry);
+    const rem = remaining(entry);
+    const row = document.createElement('div');
+    row.className = 'entry';
+
+    row.innerHTML = `
+      <div class="entry-bar ${settled ? 'settled' : 'pending'}"></div>
+      <div class="entry-main">
+        <div class="entry-top">
+          <span class="entry-name">${escapeHtml(entry.name)}</span>
+          <span class="entry-amount ${settled ? 'settled' : 'pending'}">${settled ? formatMoney(entry.amount) : formatMoney(rem)}</span>
+        </div>
+        <div class="entry-meta">${formatDate(entry.date)} · total ${formatMoney(entry.amount)}</div>
+        ${entry.note ? `<div class="entry-note">${escapeHtml(entry.note)}</div>` : ''}
+        ${entry.paid > 0 && !settled ? `<div class="entry-progress">${formatMoney(entry.paid)} received so far</div>` : ''}
+        <div class="badge ${settled ? 'settled' : 'pending'}">${settled ? 'Settled' : 'Pending'}</div>
+        <div class="entry-actions">
+          ${!settled ? `<button class="btn-small pay" data-action="pay" data-id="${entry.id}">Record payment</button>` : ''}
+          <button class="btn-small del" data-action="del" data-id="${entry.id}">Delete</button>
+        </div>
+        <div class="pay-form-holder" id="pay-holder-${entry.id}"></div>
+      </div>
+    `;
+    ledger.appendChild(row);
+  });
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+$('addBtn').addEventListener('click', async () => {
+  const name = $('nameInput').value.trim();
+  const amount = parseFloat($('amountInput').value);
+  const date = $('dateInput').value || todayStr();
+  const note = $('noteInput').value.trim();
+
+  if(!name){
+    showError('Please enter a name.');
+    return;
+  }
+  if(!amount || amount <= 0){
+    showError('Please enter a valid amount.');
+    return;
+  }
+  clearError();
+
+  entries.push({
+    id: Date.now().toString(),
+    name, amount, date, note,
+    paid: 0
+  });
+
+  $('nameInput').value = '';
+  $('amountInput').value = '';
+  $('noteInput').value = '';
+  $('dateInput').value = todayStr();
+
+  await saveEntries();
+  render();
+});
+
+$('ledger').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  const id = btn.dataset.id;
+  const action = btn.dataset.action;
+
+  if(action === 'del'){
+    if(confirm('Delete this entry? This cannot be undone.')){
+      entries = entries.filter(en => en.id !== id);
+      await saveEntries();
+      render();
+    }
+  }
+
+  if(action === 'pay'){
+    const holder = $('pay-holder-' + id);
+    if(holder.innerHTML){
+      holder.innerHTML = '';
+      return;
+    }
+    const entry = entries.find(en => en.id === id);
+    holder.innerHTML = `
+      <div class="pay-form">
+        <input type="number" min="1" max="${remaining(entry)}" placeholder="Amount received" id="pay-input-${id}">
+        <button class="btn-small pay" data-action="confirm-pay" data-id="${id}">Record</button>
+      </div>
+    `;
+  }
+
+  if(action === 'confirm-pay'){
+    const input = $('pay-input-' + id);
+    const val = parseFloat(input.value);
+    const entry = entries.find(en => en.id === id);
+    if(!val || val <= 0){
+      showError('Please enter a valid amount.');
+      return;
+    }
+    entry.paid = (entry.paid || 0) + Math.min(val, remaining(entry));
+    clearError();
+    await saveEntries();
+    render();
+  }
+});
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentFilter = tab.dataset.filter;
+    render();
+  });
+});
+
+(async function init(){
+  await loadEntries();
+  render();
+})();
+</script>
+
+</body>
+</html>
