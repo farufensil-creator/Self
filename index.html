@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lending Ledger</title>
+<link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -104,6 +105,11 @@
     margin:0 0 12px 0;
     color:var(--maroon-dark);
   }
+  .add-panel .hint{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin:-8px 0 12px 0;
+  }
   .field-row{
     display:flex;
     gap:10px;
@@ -193,17 +199,38 @@
   .entry-bar.settled{ background:var(--green); }
 
   .entry-main{ flex:1; min-width:0; }
+  .entry-total-label{
+    font-size:11.5px;
+    font-weight:700;
+    letter-spacing:.4px;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin-bottom:2px;
+  }
   .entry-top{
     display:flex;
     justify-content:space-between;
     align-items:baseline;
     gap:8px;
+    cursor:pointer;
   }
   .entry-name{
     font-family:'Fraunces', serif;
     font-weight:600;
     font-size:17px;
     color:var(--ink);
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .entry-name .arrow{
+    font-size:11px;
+    color:var(--ink-soft);
+    transition:transform .15s ease;
+    display:inline-block;
+  }
+  .entry-name .arrow.open{
+    transform:rotate(90deg);
   }
   .entry-amount{
     font-variant-numeric:tabular-nums;
@@ -219,16 +246,41 @@
     color:var(--ink-soft);
     margin-top:2px;
   }
-  .entry-note{
-    font-size:13.5px;
-    color:var(--ink-soft);
-    margin-top:4px;
-    font-style:italic;
-  }
   .entry-progress{
     font-size:12px;
     color:var(--ink-soft);
     margin-top:4px;
+  }
+
+  .loan-history{
+    margin-top:10px;
+    border-top:1px dashed var(--paper-line);
+    padding-top:8px;
+  }
+  .loan-row{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    padding:6px 0;
+    font-size:13.5px;
+  }
+  .loan-row + .loan-row{
+    border-top:1px solid var(--paper-line);
+  }
+  .loan-row .loan-note{
+    color:var(--ink);
+  }
+  .loan-row .loan-date{
+    color:var(--ink-soft);
+    font-size:11.5px;
+    display:block;
+    margin-top:1px;
+  }
+  .loan-row .loan-amount{
+    font-variant-numeric:tabular-nums;
+    font-weight:600;
+    white-space:nowrap;
+    color:var(--maroon-dark);
   }
 
   .entry-actions{
@@ -259,14 +311,6 @@
     border-color:var(--gold);
     color:var(--gold);
   }
-  .entry-total-label{
-    font-size:11.5px;
-    font-weight:700;
-    letter-spacing:.4px;
-    text-transform:uppercase;
-    color:var(--gold);
-    margin-bottom:2px;
-  }
   .badge{
     display:inline-block;
     font-size:11px;
@@ -284,12 +328,14 @@
     background:var(--green-bg);
     padding:10px;
     border-radius:6px;
+    flex-wrap:wrap;
   }
   .pay-form.add-form{
     background:#F3E9D0;
   }
   .pay-form input{
     flex:1;
+    min-width:100px;
     font-family:inherit;
     font-size:14px;
     padding:7px 9px;
@@ -348,6 +394,7 @@
 
   <div class="add-panel">
     <h2>Add a new entry</h2>
+    <div class="hint">Same name likhoge to naye loan us person ke history mein jud jayega.</div>
     <div class="field-row">
       <div class="field">
         <label for="nameInput">Name</label>
@@ -364,8 +411,8 @@
         <input type="date" id="dateInput">
       </div>
       <div class="field">
-        <label for="noteInput">Note (optional)</label>
-        <input type="text" id="noteInput" placeholder="e.g. for bike repair">
+        <label for="noteInput">Kis liye liya (optional)</label>
+        <input type="text" id="noteInput" placeholder="e.g. bike repair ke liye">
       </div>
     </div>
     <button class="btn btn-primary" id="addBtn">Add entry</button>
@@ -384,6 +431,7 @@
 const STORAGE_KEY = 'udhar-entries';
 let entries = [];
 let currentFilter = 'pending';
+let expandedIds = new Set();
 
 const $ = (id) => document.getElementById(id);
 
@@ -406,7 +454,25 @@ function formatDate(iso){
 async function loadEntries(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
-    entries = raw ? JSON.parse(raw) : [];
+    let data = raw ? JSON.parse(raw) : [];
+    // migrate old flat-entry format (single amount/note) to loans[] format
+    data = data.map(person => {
+      if(person.loans){
+        return person;
+      }
+      return {
+        id: person.id,
+        name: person.name,
+        paid: person.paid || 0,
+        loans: [{
+          id: person.id + '-l1',
+          amount: person.amount || 0,
+          date: person.date || todayStr(),
+          note: person.note || ''
+        }]
+      };
+    });
+    entries = data;
   }catch(e){
     entries = [];
   }
@@ -428,11 +494,17 @@ function clearError(){
   $('errorNote').innerHTML = '';
 }
 
-function remaining(entry){
-  return Math.max(0, entry.amount - (entry.paid || 0));
+function totalLoaned(person){
+  return person.loans.reduce((sum, l) => sum + l.amount, 0);
 }
-function isSettled(entry){
-  return remaining(entry) <= 0;
+function remaining(person){
+  return Math.max(0, totalLoaned(person) - (person.paid || 0));
+}
+function isSettled(person){
+  return remaining(person) <= 0;
+}
+function latestDate(person){
+  return person.loans.reduce((max, l) => (l.date || '') > max ? l.date : max, '');
 }
 
 function render(){
@@ -446,7 +518,7 @@ function render(){
   else if(currentFilter === 'settled') list = entries.filter(e => isSettled(e));
   else list = entries.slice();
 
-  list.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+  list.sort((a,b) => latestDate(b).localeCompare(latestDate(a)));
 
   const ledger = $('ledger');
   ledger.innerHTML = '';
@@ -462,31 +534,44 @@ function render(){
     return;
   }
 
-  list.forEach(entry => {
-    const settled = isSettled(entry);
-    const rem = remaining(entry);
+  list.forEach(person => {
+    const settled = isSettled(person);
+    const rem = remaining(person);
+    const total = totalLoaned(person);
+    const isOpen = expandedIds.has(person.id);
     const row = document.createElement('div');
     row.className = 'entry';
+
+    const loansSorted = person.loans.slice().sort((a,b) => (b.date||'').localeCompare(a.date||''));
+    const historyHtml = loansSorted.map(l => `
+      <div class="loan-row">
+        <div>
+          <span class="loan-note">${escapeHtml(l.note || 'No reason given')}</span>
+          <span class="loan-date">${formatDate(l.date)}</span>
+        </div>
+        <div class="loan-amount">${formatMoney(l.amount)}</div>
+      </div>
+    `).join('');
 
     row.innerHTML = `
       <div class="entry-bar ${settled ? 'settled' : 'pending'}"></div>
       <div class="entry-main">
-        <div class="entry-total-label">Total: ${formatMoney(entry.amount)}</div>
-        <div class="entry-top">
-          <span class="entry-name">${escapeHtml(entry.name)}</span>
-          <span class="entry-amount ${settled ? 'settled' : 'pending'}">${settled ? formatMoney(entry.amount) : formatMoney(rem)}</span>
+        <div class="entry-total-label">Total: ${formatMoney(total)}</div>
+        <div class="entry-top" data-action="toggle" data-id="${person.id}">
+          <span class="entry-name"><span class="arrow ${isOpen ? 'open' : ''}">▶</span>${escapeHtml(person.name)}</span>
+          <span class="entry-amount ${settled ? 'settled' : 'pending'}">${settled ? formatMoney(total) : formatMoney(rem)}</span>
         </div>
-        <div class="entry-meta">${formatDate(entry.date)}</div>
-        ${entry.note ? `<div class="entry-note">${escapeHtml(entry.note)}</div>` : ''}
-        ${entry.paid > 0 && !settled ? `<div class="entry-progress">${formatMoney(entry.paid)} received so far</div>` : ''}
+        <div class="entry-meta">${person.loans.length} loan${person.loans.length > 1 ? 's' : ''} · latest ${formatDate(latestDate(person))}</div>
+        ${person.paid > 0 && !settled ? `<div class="entry-progress">${formatMoney(person.paid)} received so far</div>` : ''}
         <div class="badge ${settled ? 'settled' : 'pending'}">${settled ? 'Settled' : 'Pending'}</div>
+        ${isOpen ? `<div class="loan-history">${historyHtml}</div>` : ''}
         <div class="entry-actions">
-          ${!settled ? `<button class="btn-small pay" data-action="pay" data-id="${entry.id}">Record payment</button>` : ''}
-          <button class="btn-small add" data-action="add" data-id="${entry.id}">Add more</button>
-          <button class="btn-small del" data-action="del" data-id="${entry.id}">Delete</button>
+          ${!settled ? `<button class="btn-small pay" data-action="pay" data-id="${person.id}">Record payment</button>` : ''}
+          <button class="btn-small add" data-action="add" data-id="${person.id}">Add more</button>
+          <button class="btn-small del" data-action="del" data-id="${person.id}">Delete</button>
         </div>
-        <div class="pay-form-holder" id="pay-holder-${entry.id}"></div>
-        <div class="pay-form-holder" id="add-holder-${entry.id}"></div>
+        <div class="pay-form-holder" id="pay-holder-${person.id}"></div>
+        <div class="pay-form-holder" id="add-holder-${person.id}"></div>
       </div>
     `;
     ledger.appendChild(row);
@@ -515,11 +600,19 @@ $('addBtn').addEventListener('click', async () => {
   }
   clearError();
 
-  entries.push({
-    id: Date.now().toString(),
-    name, amount, date, note,
-    paid: 0
-  });
+  const existing = entries.find(p => p.name.trim().toLowerCase() === name.toLowerCase());
+  const loan = { id: Date.now().toString(), amount, date, note };
+
+  if(existing){
+    existing.loans.push(loan);
+  } else {
+    entries.push({
+      id: Date.now().toString(),
+      name,
+      paid: 0,
+      loans: [loan]
+    });
+  }
 
   $('nameInput').value = '';
   $('amountInput').value = '';
@@ -531,13 +624,20 @@ $('addBtn').addEventListener('click', async () => {
 });
 
 $('ledger').addEventListener('click', async (e) => {
-  const btn = e.target.closest('button');
+  const btn = e.target.closest('[data-action]');
   if(!btn) return;
   const id = btn.dataset.id;
   const action = btn.dataset.action;
 
+  if(action === 'toggle'){
+    if(expandedIds.has(id)) expandedIds.delete(id);
+    else expandedIds.add(id);
+    render();
+    return;
+  }
+
   if(action === 'del'){
-    if(confirm('Delete this entry? This cannot be undone.')){
+    if(confirm('Delete this person and their whole loan history? This cannot be undone.')){
       entries = entries.filter(en => en.id !== id);
       await saveEntries();
       render();
@@ -550,10 +650,10 @@ $('ledger').addEventListener('click', async (e) => {
       holder.innerHTML = '';
       return;
     }
-    const entry = entries.find(en => en.id === id);
+    const person = entries.find(en => en.id === id);
     holder.innerHTML = `
       <div class="pay-form">
-        <input type="number" min="1" max="${remaining(entry)}" placeholder="Amount received" id="pay-input-${id}">
+        <input type="number" min="1" max="${remaining(person)}" placeholder="Amount received" id="pay-input-${id}">
         <button class="btn-small pay" data-action="confirm-pay" data-id="${id}">Record</button>
       </div>
     `;
@@ -562,12 +662,12 @@ $('ledger').addEventListener('click', async (e) => {
   if(action === 'confirm-pay'){
     const input = $('pay-input-' + id);
     const val = parseFloat(input.value);
-    const entry = entries.find(en => en.id === id);
+    const person = entries.find(en => en.id === id);
     if(!val || val <= 0){
       showError('Please enter a valid amount.');
       return;
     }
-    entry.paid = (entry.paid || 0) + Math.min(val, remaining(entry));
+    person.paid = (person.paid || 0) + Math.min(val, remaining(person));
     clearError();
     await saveEntries();
     render();
@@ -581,22 +681,29 @@ $('ledger').addEventListener('click', async (e) => {
     }
     holder.innerHTML = `
       <div class="pay-form add-form">
-        <input type="number" min="1" placeholder="How much more?" id="add-input-${id}">
+        <input type="number" min="1" placeholder="Amount" id="add-amount-${id}">
+        <input type="text" placeholder="Kis liye liya (optional)" id="add-note-${id}">
         <button class="btn-small add" data-action="confirm-add" data-id="${id}">Add</button>
       </div>
     `;
   }
 
   if(action === 'confirm-add'){
-    const input = $('add-input-' + id);
-    const val = parseFloat(input.value);
-    const entry = entries.find(en => en.id === id);
+    const amountInput = $('add-amount-' + id);
+    const noteInput = $('add-note-' + id);
+    const val = parseFloat(amountInput.value);
+    const person = entries.find(en => en.id === id);
     if(!val || val <= 0){
       showError('Please enter a valid amount.');
       return;
     }
-    entry.amount = entry.amount + val;
-    entry.date = todayStr();
+    person.loans.push({
+      id: Date.now().toString(),
+      amount: val,
+      date: todayStr(),
+      note: noteInput.value.trim()
+    });
+    expandedIds.add(id);
     clearError();
     await saveEntries();
     render();
