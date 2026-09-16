@@ -398,7 +398,7 @@
     <div class="field-row">
       <div class="field">
         <label for="nameInput">Name</label>
-        <input type="text" id="nameInput" placeholder="e.g. Ramesh">
+        <input type="text" id="nameInput" placeholder="e.g. SHESH THAKUR">
       </div>
       <div class="field">
         <label for="amountInput">Amount (रू)</label>
@@ -412,7 +412,7 @@
       </div>
       <div class="field">
         <label for="noteInput">Kis liye liya (optional)</label>
-        <input type="text" id="noteInput" placeholder="e.g. bike repair ke liye">
+        <input type="text" id="noteInput" placeholder="e.g. for what">
       </div>
     </div>
     <button class="btn btn-primary" id="addBtn">Add entry</button>
@@ -442,7 +442,7 @@ function todayStr(){
 $('dateInput').value = todayStr();
 
 function formatMoney(n){
-  return 'रू' + Math.round(n).toLocaleString('en-IN');
+  return 'NRP' + Math.round(n).toLocaleString('en-IN');
 }
 function formatDate(iso){
   if(!iso) return '';
@@ -682,7 +682,7 @@ $('ledger').addEventListener('click', async (e) => {
     holder.innerHTML = `
       <div class="pay-form add-form">
         <input type="number" min="1" placeholder="Amount" id="add-amount-${id}">
-        <input type="text" placeholder="Kis liye liya (optional)" id="add-note-${id}">
+        <input type="text" placeholder="for what (optional)" id="add-note-${id}">
         <button class="btn-small add" data-action="confirm-add" data-id="${id}">Add</button>
       </div>
     `;
